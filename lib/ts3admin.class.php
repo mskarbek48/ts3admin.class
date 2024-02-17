@@ -4409,6 +4409,87 @@ class ts3admin {
 		return $this->getData('array', 'whoami');
 	}
 
+    /**
+     * queryLoginList
+     *
+     * Display login list of ServerQuery accounts
+     *
+     * Output:
+     * Array
+     * (
+     * [success] => 1
+     * [errors] => Array
+     * (
+     * )
+     *
+     * [data] => Array
+     * (
+     * [0] => Array
+     * (
+     * [cldbid] => 31
+     * [sid] => 1
+     * [client_login_name] => Instance1
+     * )
+     *
+     * [1] => Array
+     * (
+     * [cldbid] => 32
+     * [sid] => 1
+     * [client_login_name] => Instance2
+     * )
+     *
+     * [2] => Array
+     * (
+     * [cldbid] => 33
+     * [sid] => 1
+     * [client_login_name] => Instance3
+     * )
+     * )
+     *
+     *
+     * @return array queryloginlist
+     */
+    public function queryLoginList()
+    {
+        return $this->getData("multi", "queryloginlist");
+    }
+
+    /**
+     * queryLoginAdd
+     *
+     * Create new query account (only without selected server!)
+     *
+     * @param string name - Login
+     * @param int cldbid - Client database id
+     * @return array success, client_login_password
+     */
+    public function queryLoginAdd($name, $cldbid = null)
+    {
+        if ($this->runtime["selected"]) {
+            return $this->generateOutput(false, ["Error: You can't execute this command witch selected server!"], []);
+        }
+
+        $cldbid = is_null($cldbid) ? "" : " cldbid=$cldbid";
+        return $this->getData("array", "queryloginadd client_login_name=".$this->escapeText($name) . $cldbid);
+    }
+
+    /**
+     * queryLoginDel
+     *
+     * Delete query account (only without selected server!)
+     *
+     * @param int cldbid - Client database id
+     * @return array success
+     */
+    public function queryLoginDel($cldbid)
+    {
+        if ($this->runtime["selected"]) {
+            return $this->generateOutput(false, ["Error: You can't execute this command witch selected server!"], []);
+        }
+        return $this->getData("multi", "querylogindel cldbid=$cldbid");
+    }
+
+
 //*******************************************************************************************	
 //************************************ Helper Functions ************************************
 //*******************************************************************************************
