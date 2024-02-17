@@ -3,10 +3,11 @@
  *                         ts3admin.class.php
  *                         ------------------                    
  *   created              : 18. December 2009
- *   last modified        : 13. March 2019
- *   version              : 1.0.2.5
- *   website              : http://ts3admin.info
+ *   last modified        : 17. February 2024
+ *   version              : 1.1.0.0
+ *   website              : http://tsadmin.info (Currently not exists)
  *   copyright            : (C) 2018 Stefan Zehnpfennig
+ *   author of mods       : Maciej Skarbek
  *  
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,19 +22,21 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 /** 
  * @file
- * The ts3admin.class is a powerful api for communication with Teamspeak 3 Servers from your website! Your creativity knows no bounds!
+ * The ts3admin.class is a powerful api for communication with Teamspeak 3/5 Servers from your website! Your creativity knows no bounds!
  * 
  * @author      Stefan Zehnpfennig
  * @copyright   Copyright (c) 2018, Stefan Zehnpfennig
- * @version     1.0.2.5
- * @package     ts3admin
+ * @contributor Maciej Skarbek
+ * @version     1.1.0.0
+ * @package     tsadmin
  *
  */
  
 /** 
-  * \class ts3admin
+  * \class tsadmin
   * \brief The ts3admin.class
   */
 namespace par0noid;
@@ -50,6 +53,8 @@ class ts3admin {
   * @author     Stefan Zehnpfennig
   */
 	private $runtime = array('socket' => '', 'selected' => false, 'host' => '', 'queryport' => '10011', 'timeout' => 2, 'debug' => array(), 'fileSocket' => '', 'bot_clid' => '', 'bot_name' => '');
+    private array $new_events = array();
+    private int $lastExecutedCommand = 0;
 
 //*******************************************************************************************	
 //*************************************** Constants *****************************************
@@ -104,7 +109,8 @@ class ts3admin {
 //************************************ Public Functions *************************************
 //******************************************************************************************
 
-/**
+
+    /**
   * banAddByIp
   *
   * Adds a new ban rule on the selected virtual server.
@@ -1508,11 +1514,12 @@ class ts3admin {
   * @param		integer	$start		offset [optional] (Default: 0)
   * @param		integer	$duration	limit [optional] (Default: -1)
   * @param		boolean	$count		set true to add -count param [optional]
+  * @param      boolean $homebaseonly set true to return only homebaseonly client (ts5)
   * @return     array clientdblist
   */
-	function clientDbList($start = 0, $duration = -1, $count = false) {
+	function clientDbList($start = 0, $duration = -1, $count = false, $homebaseonly = false) {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
-		return $this->getData('multi', 'clientdblist'.($start != 0 ? ' start='.$start : '').($duration != -1 ? ' duration='.$duration : '').($count ? ' -count' : ''));
+		return $this->getData('multi', 'clientdblist'.($start != 0 ? ' start='.$start : '').($duration != -1 ? ' duration='.$duration : '').($count ? ' -count' : '').($homebaseonly ? ' -homebaseonly' : ''));
 	}
 
 /**
@@ -1597,7 +1604,9 @@ class ts3admin {
   *
   * @author     Stefan Zehnpfennig
   * @param		string	$pattern	clientName
-  * @return     array clienList
+  * @param      bool $cid channelId [optional] Report channel id of the channel client is in (ts5)
+  * @param      bool $chuid [optional] Report channel_unique_identifieer of the channel the client is in(ts5)
+  * @return     array clientList
   */
 	function clientFind($pattern) {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
@@ -2190,7 +2199,7 @@ class ts3admin {
   * @param		string	$dirname	dirPath
   * @return     array success
   */
-	function ftCreateDir($cid, $cpw = null, $dirname) {
+	function ftCreateDir($cid, $cpw = null, $dirname = '') {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
 		return $this->getData('boolean', 'ftcreatedir cid='.$cid.' cpw='.$this->escapeText($cpw).' dirname='.$this->escapeText($dirname));
 	}
@@ -2215,7 +2224,7 @@ class ts3admin {
   * @param		array	$files	files
   * @return     array success
   */
-	function ftDeleteFile($cid, $cpw = '', $files) {
+	function ftDeleteFile($cid, $cpw = '', $files = array()) {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
 		$fileArray = array();
 		
@@ -2277,7 +2286,7 @@ class ts3admin {
   * @param		string 	$file	path to file
   * @return     array success
   */
-	function ftGetFileInfo($cid, $cpw = '', $file) {
+	function ftGetFileInfo($cid, $cpw = '', $file = '') {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
 
 		return $this->getData('multi', 'ftgetfileinfo cid='.$cid.' cpw='.$this->escapeText($cpw).' name='.$this->escapeText($file));
@@ -2307,7 +2316,7 @@ class ts3admin {
   * @param		string	$path	filePath
   * @return     array	fileList
   */
-	function ftGetFileList($cid, $cpw = '', $path) {
+	function ftGetFileList($cid, $cpw = '', $path = '') {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
 		return $this->getData('multi', 'ftgetfilelist cid='.$cid.' cpw='.$this->escapeText($cpw).' path='.$this->escapeText($path));
 	}
@@ -2425,7 +2434,7 @@ class ts3admin {
   * @param		string  $tcpw		targetChannelPassword [optional]
   * @return     array success
   */
-	function ftRenameFile($cid, $cpw = null, $oldname, $newname, $tcid = null,  $tcpw = null) {
+	function ftRenameFile($cid, $cpw = null, $oldname = '', $newname= '', $tcid = null,  $tcpw = null) {
 		if(!$this->runtime['selected']) { return $this->checkSelected(); }
 		$newTarget = ($tcid != null ? ' tcid='.$tcid.' '.$tcpw : '');
 		return $this->getData('boolean', 'ftrenamefile cid='.$cid.' cpw='.$cpw.' oldname='.$this->escapeText($oldname).' newname='.$this->escapeText($newname).$newTarget);
@@ -2851,7 +2860,7 @@ class ts3admin {
 		
 		try {
 			$data = file_get_contents($filepath);
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			return $this->generateOutput(false, array('Error: can\'t read file - '.$e->getMessage()), false);
 		}
 		
@@ -3243,16 +3252,7 @@ class ts3admin {
 	{
 		$whoAmI = $this->getElement('data', $this->whoAmI());
 		$this->runtime['bot_name'] = $whoAmI['client_nickname'];
-		
-		$clients = $this->clientList();
-		foreach($clients['data'] as $client)
-		{
-			if(strstr($this->runtime['bot_name'], $client['client_nickname']))
-			{
-				$this->runtime['bot_clid'] = $client['clid'];
-				break;
-			}
-		}
+		$this->runtime['bot_clid'] = $whoAmI['client_id'];
 	}
 	
 /**
@@ -3275,7 +3275,7 @@ class ts3admin {
                 $res = $this->getData('boolean', 'use port='.$value.$virtual.$name); 
                 if($res['success']) { 
                    	$this->runtime['selected'] = true; 
-			$this->loadQueryData();
+			        $this->loadQueryData();
                 } 
                 return $res; 
             }else{ 
@@ -3283,7 +3283,7 @@ class ts3admin {
                 $res = $this->getData('boolean', 'use sid='.$value.$virtual.$name); 
                 if($res['success']) { 
                     	$this->runtime['selected'] = true; 
-			$this->loadQueryData();
+			            $this->loadQueryData();
                 } 
                 return $res; 
             } 
@@ -4489,6 +4489,109 @@ class ts3admin {
         return $this->getData("multi", "querylogindel cldbid=$cldbid");
     }
 
+/*** TS5 FUNCTIONS ***/
+
+    /**
+     * homeBaseIsSet
+     *
+     * TODO:
+     */
+    public function homeBaseIsSet() {
+
+    }
+
+
+    /**
+     * homeBaseList
+     *
+     * TODO:
+     */
+    public function homeBaseList() {
+
+    }
+
+
+    /**
+     * homeBaseSet
+     *
+     * TODO:
+     */
+    public function homeBaseSet() {
+
+    }
+
+
+    /**
+     * licenseSignMessage
+     *
+     * TODO:
+     */
+    public function licenseSignMessage() {
+
+    }
+
+
+    /**
+     * authenticationToken
+     *
+     * TODO:
+     */
+    public function authenticationToken() {
+
+    }
+
+
+    /**
+     * banFind
+     *
+     * TODO:
+     */
+    public function banFind() {
+
+    }
+
+
+
+
+    /**
+     * chatLoginToken
+     *
+     * TODO:
+     */
+    public function chatLoginToken() {
+
+    }
+
+
+
+
+
+
+
+    /**
+     * ftGetChannelFileHttpToken
+     *
+     * TODO:
+     */
+    public function ftGetChannelFileHttpToken() {
+
+    }
+
+
+
+
+    /**
+     * homeBaseDel
+     *
+     * TODO:
+     */
+    public function homeBaseDel() {
+
+    }
+
+
+
+
 
 //*******************************************************************************************	
 //************************************ Helper Functions ************************************
@@ -4576,7 +4679,7 @@ class ts3admin {
   * </pre>
   * Now you can grab the element like this:
   * <pre>
-  * $ts = new ts3admin('***', '***');
+  * $ts = new tsadmin('***', '***');
   * 
   * if($ts->getElement('success', $ts->connect())) {
   *  //operation
@@ -4597,7 +4700,7 @@ class ts3admin {
   * 
   * Succeeded will check the success element of a return array
   * <pre>
-  * $ts = new ts3admin('***', '***');
+  * $ts = new tsadmin('***', '***');
   * 
   * if($ts->succeeded($ts->connect())) {
   *  //operation
@@ -4780,7 +4883,7 @@ class ts3admin {
 		}
 		else
 		{
-			if(strpos(fgets($socket), 'TS3') !== false)
+			if(strpos(fgets($socket), 'TS3') !== false) // On TeamSpeak 5 you have 'TS3' too after connection
 			{
 				$tmpVar = fgets($socket);
 				$this->runtime['socket'] = $socket;
@@ -4825,22 +4928,58 @@ class ts3admin {
 		}
 		
 		$data = '';
-				
 		$splittedCommand = str_split($command, 1024);
-		
 		$splittedCommand[(count($splittedCommand) - 1)] .= "\n";
 		
 		foreach($splittedCommand as $commandPart)
 		{
-			if(!(@fputs($this->runtime['socket'], $commandPart)))
-			{
-				$this->runtime['socket'] = $this->runtime['bot_clid'] = '';
-				$this->addDebugLog('Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
-				return $this->generateOutput(false, array('Socket closed.'), false);
-			}
+            if(is_resource($this->runtime['socket']) && $this->runtime['socket'] != null) // Sending command to bugged socket, make 100% cpu usage, this is fix.
+            {
+                if(!(@fputs($this->runtime['socket'], $commandPart)))
+                {
+                    $this->runtime['socket'] = $this->runtime['bot_clid'] = '';
+                    $this->addDebugLog('Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
+                    return $this->generateOutput(false, array('Socket closed.'), false);
+                }
+            } else {
+                $this->addDebugLog('script isn\'t connected to server', $tracert[1]['function'], $tracert[0]['line']);
+                return $this->generateOutput(false, array('Error: script isn\'t connected to server'), false);
+            }
 		}
+
+        $check_socket = 0;
+
 		do {
-			$data .= @fgets($this->runtime['socket'], 4096);
+
+            $check_socket++;
+            if($check_socket > 500)
+            {
+                throw new \Exception("Connection closed."); // The next fix is used to protect against 100% CPU usage
+            }
+
+            /**
+             *
+             * Important edit
+             *
+             * This is resolution for problem with events and broken responses from ServerQuery telnet,
+             * I saw some people using events without this fix on github with bugged events, when multiple.
+             * For example client joins the channel.
+             *
+             * This method fixes ALL of the problems with events, but to use this method you must read "README"
+             *
+             */
+
+            $data_from_socket = @fgets($this->runtime['socket'], 4096);
+
+
+            if(str_contains(substr($data_from_socket,0,7), 'notify'))
+            {
+                $this->addEvent($data_from_socket);
+            } else {
+                $data .= @fgets($this->runtime['socket'], 4096);
+            }
+
+
 			
 			if(empty($data))
 			{
@@ -4875,78 +5014,188 @@ class ts3admin {
 		}
 	}
 
-/**
-  * readChatMessage
-  * 
-  * Read chat message by its type (Result: http://bit.ly/2dtBXnT)
-  *
-  * IMPORTANT: Check always for message success, sometimes you can get an empty message 
-  * and it will return empty data
-  * 
-  * <b>Output:</b>
-  * <pre>
-  * Array
-  * {
-  *		[invokerid] => 37
-  *		[invokeruid] => /jl8QCHJWrHDKXgVtF+9FX7zg1E=
-  *		[invokername] => toxiicdev.net
-  *		[msg] => It's just a prank bro
-  *		[targetmode] => 3
-  * }
-  * </pre>
-  * @author	toxiicdev 
-  * @param	string	$type		textserver|textchannel|textprivate
-  * @param	boolean	$keepalive	default false
-  * @param	int		$cid		channel id (required only for textchannel)
-  * @return	array	data
-  */	
-	public function readChatMessage($type = 'textchannel', $keepalive = false, $cid = -1)
-	{
-		$availTypes = array('textserver', 'textchannel', 'textprivate');
-		$rtnData = array('success' => 0, 'data' => array('invokerid' => '', 'invokeruid' => '', 'invokername' => '', 'msg' => '', 'targetmode' => ''));
-		
-		if(!$this->isConnected()) {
-			$this->addDebugLog('script isn\'t connected to server', $tracert[1]['function'], $tracert[0]['line']);
-			return $rtnData;
-		}
-		
-		if(!in_array($type, $availTypes)) {
-			$this->addDebugLog('Invalid passed read type', $tracert[1]['function'], $tracert[0]['line']);
-			return $rtnData;
-		}
-		
-		if(!$this->runtime['selected']) { return $this->checkSelected(); }
-		
-		$whoami = $this->whoami();
-		
-		if(!$whoami['success']) { return $whoami; }
-		
-		if($type == 'textchannel' && $whoami['data']['client_channel_id'] != $cid)
-		{
-			$this->clientMove($this->getQueryClid(), $cid);
-		}
-		
-		$this->executeCommand("servernotifyregister event=$type" . ($cid != -1 ? " id=$cid" : "") , null);
-		
-		$data = fgets($this->runtime['socket'], 4096);
-		
-		if(!empty($data))
-		{		
-			$rtnData['success'] = 1;
-			$msgData = explode(" ", $data);
-			foreach($msgData as $param)
-			{
-				$paramData = explode("=", $param);
-				if(array_key_exists($paramData[0], $rtnData['data']))
-				{
-					$rtnData['data'][$paramData[0]] = $this->unescapeText(implode("=", array_slice($paramData, 1, count($paramData) -1)));
-				}
-			}
-		}
-		if(!$keepalive) $this->serverNotifyUnregister();
-		
-		return $rtnData;
-	}
+    /**
+     * addEvent
+     *
+     * This function is used to add missing events, which are missed during command called before.
+     *
+     * @param $string
+     * @return void
+     */
+    private function addEvent($string)
+    {
+        $this->new_events[] = $string;
+    }
+
+    /**
+     * serverNotifyRegister
+     *
+     * Register for new events
+     * Available: server, channel, textserver, textchannel, textprivate, tokenused
+     *
+     * You can use "bans" when you are using TS5 server too.
+     *
+     * Use $channel only when you want to use textchannel to read messages from some channel
+     *
+     * IMPORTANT! When you want to listen to move events, disconnect etc. you must leave $channel with 0 value to listen all channels,
+     * but you can only listen to chat channel, when ServerQuery client is on the channel.
+     *
+     * @param string $name
+     * @param int $channel
+     * @return array
+     * @throws \Exception
+     */
+    public function serverNotifyRegister(string $name, int $channel = 0)
+    {
+
+        return $this->executeCommand("servernotifyregister event=".strtolower($name).(strtolower($name)=='channel'?" id=" . $channel : ""));
+    }
+
+    /**
+    * isEventSelf
+    *
+    * Function to fix bug with TeamSpeak 3 ServerQuery
+    * Without this enabled, when you are listening to event and sending message,
+    * ServerQuery will get notify, that bot sent message, and if you respond with
+    * for example "bad command", you will cause infinity loop and 100% cpu usage.
+    *
+    * @param array $event_array
+    * @return bool
+    */
+    private function isEventSelf(array $event_array): bool
+    {
+        if(array_key_exists("notifytextmessage", $event_array))
+        {
+            if(isset($event_array['invokerid']) && $event_array['invokerid'] == $this->runtime['bot_clid'])
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    /**
+    * logEventListener
+    *
+    * Special function used to get all invisible events basing of server logs
+    *
+    * Warning! This is not a typical event listener, because ServerQuery do not have access to
+    * group or permission change events in their servernotifyregister command, this function is working on serverlogs
+    * to bypass those limits. 
+    *
+    * TO DO
+    *
+    * @param int $group_id - Filter only for group events
+    * @param bool $client_data
+    * @param $only_new
+    * @return void
+    */
+    public function logEventListener(int $group_id = 0, bool $client_data = false, $only_new = true)
+    {
+        // TO DO
+    }
+
+    /**
+     * eventListener
+     *
+     * Function to get ALL events from TeamSpeak 3 server without any missed event.
+     *
+     * You have 2 modes:
+     *      - 1:
+     *          When?: When you are creating only event-react event, without interval functions
+     *          Results?: When you use function, your script will be waiting for events from socket, and give the order
+     *                    one in a result, when no events in history, script will be waiting infinity to any events. Old
+     *                    events will be removed from history, when you call this function.
+     *          Advantages: VERY low CPU usage, VERY fast response to event in server
+     *      - 2:
+     *          When?: ONLY if you are using other command in your while(true) loop, because without any other command,
+     *                 you will not get any event notification.
+     *                 For example: interval+events function (not recommended for high usage application.)
+     *          Results?: You will get new events when you execute any commands, because executeCommand function will be
+     *                    waiting for response to command, and before response socket will catch all of the previous events.
+     *          Advantages: Multi-system instance of bot
+     *
+     * If you know , what are you are doing, you can set "allow_self" to true, but it's highly not recommended.
+     * Do not touch keep_alive bool, if you do not have -1 timeout for query in server configuration (only in ts3server.ini)
+     * TeamSpeak do not documented variable "query_timeout" in their documentation, but you can add this to ts3server.ini
+     *
+     * @param int $mode
+     * @param bool $allow_self
+     * @param bool $keep_alive
+     * @return array
+     * @throws \Exception
+     */
+    public function eventListener(int $mode = 1, bool $allow_self = false, bool $keep_alive = false):array
+    {
+
+        if($mode == 0)
+        {
+            if(!empty($this->new_events))
+            {
+                foreach($this->new_events as $key => $event)
+                {
+                    unset($this->event[$key]);
+                    $event_array = $this->eventToArray($event);
+
+                    if(!$allow_self)
+                    {
+                        if($this->isEventSelf($event_array))
+                        {
+                            continue;
+                        }
+                    }
+                    return $event_array;
+                }
+            } else {
+                return array();
+            }
+        } elseif($mode == 1)
+        {
+            $missed_event = $this->eventListener(0, $allow_self, $keep_alive);
+            if(!empty($missed_events))
+            {
+                return $missed_event;
+            } else {
+
+                do {
+                    if(is_resource($this->runtime['socket']))
+                    {
+                        $data_from_socket = fgets($this->runtime["socket"], 4096);
+                        if(str_contains(substr($data_from_socket,0,7), "notify"))
+                        {
+                            $event_array = $this->eventToArray($data_from_socket);
+                            if(!$allow_self)
+                            {
+                                if($this->isEventSelf($event_array))
+                                {
+                                    $event_array = array();
+                                }
+                            }
+                            if(!empty($event_array))
+                            {
+                                return $event_array;
+                            } elseif($keep_alive) {
+                                if(time() - $this->lastExecutedCommand > 60)
+                                {
+                                    $this->lastExecutedCommand = time();
+                                    $this->version(); # Shorter response to better performance
+                                }
+                            }
+                        } else {
+                            //WARNING! Sometimes if you use non documented command, the command may appear there.
+                        }
+                    } else {
+                        throw new \Exception("Connection closed.");
+                    }
+                } while($this->isConnected());
+            }
+        }
+
+        return array();
+    }
+
+
 /**
  * serverNotifyUnregister
  * 
@@ -5156,5 +5405,5 @@ class ts3admin {
  *
  * The ts3admin.class is a powerful api for communication with Teamspeak 3 Servers from your website! Your creativity knows no bounds!
  *
- * <a href="http://ts3admin.info" />http://ts3admin.info</a>
+ * <a href="http://tsadmin.info" />http://tsadmin.info</a>
  */

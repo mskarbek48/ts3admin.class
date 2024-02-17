@@ -6,7 +6,7 @@
     "type": "library",
 	"version": "1.0.2.5",
     "require": {
-        "php": ">=5.0.0"
+        "php": ">=8.0.0"
     },
     "license": "GPL-3.0",
     "autoload": {
