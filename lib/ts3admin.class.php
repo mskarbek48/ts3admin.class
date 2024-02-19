@@ -4952,6 +4952,7 @@ class ts3admin {
 		do {
 
             $check_socket++;
+
             if($check_socket > 500)
             {
                 throw new \Exception("Connection closed."); // The next fix is used to protect against 100% CPU usage
@@ -4976,22 +4977,23 @@ class ts3admin {
             {
                 $this->addEvent($data_from_socket);
             } else {
-                $data .= @fgets($this->runtime['socket'], 4096);
+                $data .=  $data_from_socket;
+                if(empty($data))
+                {
+                    $this->runtime['socket'] = $this->runtime['bot_clid'] = '';
+                    $this->addDebugLog('Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
+                    return $this->generateOutput(false, array('Socket closed.'), false);
+                }
+                else if(strpos($data, 'error id=3329 msg=connection') !== false) {
+                    $this->runtime['socket'] = $this->runtime['bot_clid'] = '';
+                    $this->addDebugLog('You got banned from server. Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
+                    return $this->generateOutput(false, array('You got banned from server. Connection closed.'), false);
+                }
             }
 
 
 			
-			if(empty($data))
-			{
-				$this->runtime['socket'] = $this->runtime['bot_clid'] = '';
-				$this->addDebugLog('Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
-				return $this->generateOutput(false, array('Socket closed.'), false);
-			}
-			else if(strpos($data, 'error id=3329 msg=connection') !== false) {
-				$this->runtime['socket'] = $this->runtime['bot_clid'] = '';
-				$this->addDebugLog('You got banned from server. Socket closed.', $tracert[1]['function'], $tracert[0]['line']);
-				return $this->generateOutput(false, array('You got banned from server. Connection closed.'), false);
-			}
+
 			
 		} while(strpos($data, 'msg=') === false or strpos($data, 'error id=') === false);
 
@@ -5122,11 +5124,10 @@ class ts3admin {
      *
      * @param int $mode
      * @param bool $allow_self
-     * @param bool $keep_alive
      * @return array
      * @throws \Exception
      */
-    public function eventListener(int $mode = 1, bool $allow_self = false, bool $keep_alive = false):array
+    public function eventListener(int $mode = 1, bool $allow_self = false):array
     {
 
         if($mode == 0)
@@ -5135,7 +5136,7 @@ class ts3admin {
             {
                 foreach($this->new_events as $key => $event)
                 {
-                    unset($this->event[$key]);
+                    unset($this->new_events[$key]);
                     $event_array = $this->eventToArray($event);
 
                     if(!$allow_self)
@@ -5152,7 +5153,7 @@ class ts3admin {
             }
         } elseif($mode == 1)
         {
-            $missed_event = $this->eventListener(0, $allow_self, $keep_alive);
+            $missed_event = $this->eventListener(0, $allow_self);
             if(!empty($missed_events))
             {
                 return $missed_event;
@@ -5175,17 +5176,12 @@ class ts3admin {
                             if(!empty($event_array))
                             {
                                 return $event_array;
-                            } elseif($keep_alive) {
-                                if(time() - $this->lastExecutedCommand > 60)
-                                {
-                                    $this->lastExecutedCommand = time();
-                                    $this->version(); # Shorter response to better performance
-                                }
                             }
                         } else {
                             //WARNING! Sometimes if you use non documented command, the command may appear there.
                         }
                     } else {
+                        var_dump($this->runtime['socket']);
                         throw new \Exception("Connection closed.");
                     }
                 } while($this->isConnected());
@@ -5207,6 +5203,43 @@ class ts3admin {
 	{
 		$this->executeCommand("servernotifyunregister", null);	
 	}
+
+    public function eventToArray($data)
+    {
+        if (strlen($data) == 0) {
+            return [];
+        }
+
+        if (!empty($data)) {
+            $datasets = explode(" ", $data);
+            $output = [];
+
+            foreach ($datasets as $dataset) {
+                $dataset = explode("=", $dataset);
+
+                if (count($dataset) > 2) {
+                    for ($i = 2; $i < count($dataset); $i++) {
+                        $dataset[1] .= "=" . $dataset[$i];
+                    }
+
+                    $output[
+                    $this->unEscapeText($dataset[0])
+                    ] = $this->unEscapeText($dataset[1]);
+                } else {
+                    if (count($dataset) == 1) {
+                        $output[$this->unEscapeText($dataset[0])] = "";
+                    } else {
+                        $output[
+                        $this->unEscapeText($dataset[0])
+                        ] = $this->unEscapeText($dataset[1]);
+                    }
+                }
+            }
+
+            return $output;
+        }
+        return [];
+    }
 /**
  * getData
  * 

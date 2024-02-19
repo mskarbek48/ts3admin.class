@@ -26,14 +26,17 @@ The fork of this project was created to update its functionality and add missing
 
 * FULLY WORKING EVENTS!
 * Full compatibility with PHP 8.0+
-* New eventListener function under testing
-* New logEventListener function in progress
-* New missing commands: servernotifyregister, apikeyadd, apikeydel, queryloginlist, etc.
-* The executeCommand function has been modified to handle events correctly.
-* Protection against 100% CPU usage, which occurred in the original version
-* clientDbList, clientFind functions with new ts5 params
-* The loadQueryData function no longer retrieves unnecessary client lists.
+* New eventListener function DONE
+* The executeCommand function has been modified to handle events correctly. DONE
+* Protection against 100% CPU usage, which occurred in the original version DONE
+* The loadQueryData function no longer retrieves unnecessary client lists. DONE
+
+TO-DO:
+
+* New logEventListener function IN PROGRESS
 * Functions from TS5 have been added, currently in progress: homebaseisset, homebaselist, homebaseset, licensesignmessage, authenticationtoken, banfind, chatlogintoken, ftgetchannelfilehttptoken, homebasedel
+* clientDbList, clientFind functions with new ts5 params  IN PROGRESS
+* New missing commands: servernotifyregister, queryloginlist, etc. IN PROGRESS
 
 ## Roadmap
 
